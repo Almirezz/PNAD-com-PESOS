@@ -1,0 +1,26 @@
+Fazer análise da PNADc 2023 do 5º trimestre
+
+Calcular estatísticas descritivas: renda mediana (por raça e gênero), curva Lorenz
+
+Biblioteca PNADc-IBGE
+
+
+
+Procedimento para fazer um repositório:
+
+abrir git bash na pasta
+
+git init
+
+
+
+####Procedimento para caso coloque um git no lugar errado
+
+find . -name .git
+
+rm -rf "local do arquivo"    para apagar git que fez errado)
+
+
+####
+
+

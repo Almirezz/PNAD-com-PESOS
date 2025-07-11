@@ -1,0 +1,13 @@
+# Arquivos temporários do R/RStudio
+**/.RData 
+**/.Rhistory
+**/*.Rproj.user/
+**/*.Rproj
+
+# Arquivos de dados temporários
+**/.Rds
+**/.rds
+
+# Outros arquivos desnecessários
+**/.DS_Store
+**/Thumbs.db

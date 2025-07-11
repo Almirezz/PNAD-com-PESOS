@@ -1,0 +1,53 @@
+---
+title: "Código Pnad 2023"
+author: "Almirêz Colombani Bispo de Almeida"
+date: "2025-07-11"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+#Carregar Bibliotecas
+```{r}
+#intalar biblioteca caso necessário
+#install.packages("PNADcIBGE")
+#install.packages("hutils")
+
+library(PNADcIBGE) #biblioteca para puxar PNADc
+library(tidyverse)#ggplot2 + dplyr
+library(hutils)# não sei
+
+```
+
+#Design
+```{r}
+
+cores_made <- c("#45ff66", "#eb52ff", "#3366ff","#feff41")
+
+
+```
+
+#Baixar base PNADc (2023, 5º coleta)
+```{r}
+surveyPNAD <- get_pnadc(year = 2023, interview = 5) #obejto survey
+```
+#Tranformar em dataframe
+```{r}
+df_PNAD <- surveyPNAD$variables
+df_PNAD <- df_PNAD |> mutate(peso = surveyPNAD$pweights ) 
+
+#Uhmmmm
+peso <- df_PNAD$peso
+
+peso2 <-surveyPNAD$repweights
+
+```
+
+
+
+
+
+
