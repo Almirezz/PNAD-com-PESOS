@@ -24,3 +24,26 @@ rm -rf "local do arquivo"    para apagar git que fez errado)
 ####
 
 
+git status
+
+(é para aparecer sem commits e os aquivos "não adicionados")
+
+
+git add . (já seria o suficiente)
+
+git add --verbose .  (serve para ver o que está acontecendo)
+
+
+git commit -m "initial commit"
+
+
+Cria um Repositório em  github.com/new
+
+Volta par ao Git Brash
+
+git remote add origin https://github.com/Almirezz/PNAD-com-PESOS.git    ####associa o git local ao repositório
+
+git branch -m main                 ###Renomei a Branch atual para Main
+
+git push -u origin main       #### Sobe o commit para o github
+

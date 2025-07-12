@@ -1,4 +1,4 @@
-# Arquivos temporários do R/RStudio
+# Arquivos temporários do R/RStudio (**/ faz com que qualquer arquivo de qualquer pasta com a extensão )
 **/.RData 
 **/.Rhistory
 **/*.Rproj.user/
