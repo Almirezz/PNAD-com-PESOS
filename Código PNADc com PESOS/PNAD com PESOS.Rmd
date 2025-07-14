@@ -15,34 +15,222 @@ knitr::opts_chunk$set(echo = TRUE)
 #intalar biblioteca caso necessário
 #install.packages("PNADcIBGE")
 #install.packages("hutils")
+#install.packages("survey")
+
 
 library(PNADcIBGE) #biblioteca para puxar PNADc
 library(tidyverse)#ggplot2 + dplyr
-library(hutils)# não sei
+library(hutils)# trabalhar com pesos
+library(survey)# trabalhar com pesos
 
 ```
 
 #Design
 ```{r}
 
-cores_made <- c("#45ff66", "#eb52ff", "#3366ff","#feff41")
+cores_made <- c("#45ff66", "#eb52ff", "#3366ff","#feff41", "#fca64e" ) #adicionei o laranja porque estava faltando cor
 
 
 ```
 
-#Baixar base PNADc (2023, 5º coleta)
+#Base PNADc (2023, 5º coleta)
 ```{r}
-surveyPNAD <- get_pnadc(year = 2023, interview = 5) #obejto survey
+#Baixar Base
+#surveyPNAD <- get_pnadc(year = 2023, interview = 5) #obejto survey
+
+# Armazena no HD local arquivo serializado para leituras futuras
+#saveRDS(surveyPNAD,"./surveyPNAD.rds")
+
+#Puxar base
+surveyPNAD = readRDS("surveyPNAD.rds")
+
+
 ```
+
 #Tranformar em dataframe
 ```{r}
+#Pegar dados e pesos
 df_PNAD <- surveyPNAD$variables
 df_PNAD <- df_PNAD |> mutate(peso = surveyPNAD$pweights ) 
 
 #Uhmmmm
-peso <- df_PNAD$peso
+peso <- surveyPNAD$pweights   # pesos para corrigir não representatividade em uma amostra
 
-peso2 <-surveyPNAD$repweights
+peso2 <-surveyPNAD$repweights   # pesos para estimar variância de estimativas em amostragens complexas
+
+```
+
+
+#Tratamento da Base (raça e idade)
+```{r}
+#Tirar raca (v2010) "ignorado" e idade (V2009)< 18
+
+PNADc <- df_PNAD |> filter (V2010 != "Ignorado", V2009 >= 18) |> mutate(idade = V2009, raca = V2010, genero = V2007)
+
+#Proporção da base sem raça = "ignorado"
+nrow(PNADc)/nrow(df_PNAD) #0.7667
+
+#proporção raça
+prop_raca <- PNADc |> count(raca) |> mutate(prop = n/sum(n) )
+prop_raca
+
+#proporção gênero
+
+prop_genero <- PNADc |> count(genero) |> mutate(prop = n/sum(n) )
+prop_genero
+```
+
+
+
+#Tratamento da Base (renda)
+```{r}
+#Criar Variável renda (Soma: emprego principal, secundário e outros trabalhos)
+#Não será levando em consideração retirada em produtos e mercadorias com valor estimado em dinheiro
+
+#proporção trabalho principal (4034 indica se aplica, ou seja, se tem trabalho principal)
+ptrabalho_pri <- PNADc |> count(V4034) |> mutate(prop = n/sum(n) )
+ptrabalho_pri #0.53 tem trabalho principal
+
+#proporção trabalho secundário (4051 indica se aplica, ou seja, se tem trabalho secundário)
+ptrabalho_sec <- PNADc |> count(V4051) |> mutate(prop = n/sum(n) )
+ptrabalho_sec #0.015 tem trabalho secundário
+
+#proporção outros trabalhos (4058 indica se aplica, ou seja, se tem outros trabalhos)
+ptrabalho_outros <- PNADc |> count(V4058) |> mutate(prop = n/sum(n) )
+ptrabalho_outros #0.0008 tem outros trabalhos
+
+
+#####Somar as Rendas (trabalho principal V403412, trabalho secundário V405112, outros trabalhos V405812)
+#Primeiro, tem que ter alguma renda de trabalho
+#Depois, transformar os NA´s em zero para conseguir somar sem tornar tudo NA
+#Somar de boa
+
+pnad <- PNADc |> filter( !is.na(V403412) | !is.na(V405112) | !is.na(V405812) ) |> 
+  mutate(
+          V403412 = ifelse(is.na(V403412), 0, as.numeric(V403412)), 
+          V405112 = ifelse(is.na(V405112), 0, as.numeric(V405112)),
+          V405812 = ifelse(is.na(V405812), 0, as.numeric(V405812)),
+         )|> mutate(rendaT = V403412 + V405112 + V405812)|> filter(rendaT>0)
+
+#Proporção da base com trabalho e renda
+nrow(pnad)/nrow(df_PNAD)#0.3982 (com trabalho dava 0.41 essa diferença deve se dar pelo pessoal que recebe em produtos ou mercadorias e eu não considerei?)
+
+#Acho que seria melhor considerar essa outra fonte de "renda" algumas pessoas podem ter renda 0 ou muito baixa e na verdade ter uma condição de vida melhor do que quem recebe salário, não?
+
+#proporção raça
+prop_racaT <- pnad |> count(raca) |> mutate(prop = n/sum(n) )
+prop_racaT
+
+#proporção gênero
+
+prop_generoT <- pnad |> count(genero) |> mutate(prop = n/sum(n) )
+prop_generoT
+
+```
+PNADc COM MAIS DE 99 ANOS (voltei para a base com pessoas sem ocupação)
+
+```{r}
+
+#Pessoas +99 (N pequeno :/ )
+
+P99 <- PNADc |> filter (V2009 >=99)
+
+#proporção raça
+p99_raca <- P99 |> count(V2010) |> mutate(prop = n/sum(n) )
+p99_raca
+
+#proporção gênero
+
+p99_genero <- P99 |> count(V2007) |> mutate(prop = n/sum(n) )
+p99_genero
+
+
+```
+
+
+
+#Estatísticas Descritivas (sem pesos)
+```{r}
+#Calcular média, mediana, desvio padrão, 5º percentil, 1º quartil, 3º quartil, 95º percentil, mínimo, máximo e número de observações (n) para a renda Total (principal, secundário, outros) - agrupando por raca e genero
+descr_pnad <- pnad |> group_by( raca, genero) |> 
+        summarise(  media = mean(rendaT),                                                                                        mediana = median(rendaT) , 
+                    dp = sd(rendaT),
+                    p5 = quantile(rendaT, probs = 0.05), #5º percentil
+                    Q1 = quantile(rendaT, probs = 0.25), 
+                    Q3 = quantile(rendaT, probs = 0.75), 
+                    p95 = quantile(rendaT, probs = 0.95), #95º percentil
+                    min = min(rendaT),                   
+                    max = max(rendaT),                 
+                    n = n() 
+                    )
+
+```
+
+
+#Estatísticas Descritivas (com pesos)
+```{r}
+
+descr_pnadP <- pnad |> group_by( rendaT, raca, genero) |> summarise(Total = sum(peso) )
+#entendi porque separou em decis
+
+# Decis
+pnad <- pnad |> mutate(decis = weighted_ntile(rendaT, peso, 10))
+#usa-se peso porque cada pessoa na amostra representa x pessoas na população
+#total_pop representa o total da população que cada grupo representa
+#total_decil é o total do decil na população
+#prop representa a participação de cada grupo no decil
+tabela <- pnad |> group_by(decis, raca, genero) |> summarise(Total_pop = sum(peso)) |> ungroup() |> group_by(decis) |>  mutate(Total_decil = sum(Total_pop))|> ungroup()|>mutate(prop = ((Total_pop/Total_decil)*100))
+
+
+sum(tabela$Total_pop) #94 milhões de pessoas com emprego e renda
+#para os 100 milhões da internet faltou o quê?
+
+# Gráfico (peguei do repositório do made)
+plot <- ggplot(tabela, aes(fill = raca, x = decis, y = prop)) + 
+  geom_bar(position = "stack", stat="identity") +
+  scale_fill_manual(values = cores_made, name = "Grupo Demográfico") +
+  ylab("Proporção (em %)") +
+  xlab("Decis") +
+  ggtitle("Composição Demográfica \n de Cada Decil de Renda") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_x_continuous(breaks = seq(1, 10, 1))
+
+plot
+
+#Calcular média, mediana, desvio padrão, 5º percentil, 1º quartil, 3º quartil, 95º percentil, mínimo, máximo e número de observações (n) para a renda Total (principal, secundário, outros) - agrupando por raca e genero
+
+design_filtrado <- svydesign(
+  ids = ~UPA,               # Unidades primárias de amostragem
+  strata = ~Estrato,        # Estratos
+  weights = surveyPNAD$pweights,         # Peso amostral
+  data = pnad,     # Seu dataframe filtrado
+  nest = TRUE               # Para estratos aninhados
+)
+
+
+
+descr_pnadP <- svryby(~rendaT, ~raca + genero, design_filtrado, na.rm = TRUE)
+                  
+####Não está dando certo porque svymean só funciona com survey, e depois porque o surveyPNAD e o pnad são de tamanhos diferentes
+
+#####Isso também não deu certo, mas deixei pela memória
+r_trabalho <- trabalho|> group_by( raca, genero) |> 
+        summarise(  media = survey_mean(rendaT, vartype = "ci"),
+                    mediana = survey_median(rendaT),
+                    dp = survey_sd(rendaT),
+                    p5 = survey_quantile(rendaT, quantiles = 0.05),
+                    Q1 = survey_quantile(rendaT, quantiles = 0.25),
+                    Q3 = survey_quantile(rendaT, quantiles = 0.75),
+                    p95 = survey_quantile(rendaT, quantiles = 0.95),
+                    min = survey_min(rendaT),
+                    max = survey_max(rendaT),
+                    n = unweighted(n())
+                  )
+
+
+
+
+
 
 ```
 
@@ -50,4 +238,26 @@ peso2 <-surveyPNAD$repweights
 
 
 
+
+
+#Curva de Lorenz
+```{r}
+#arrange (reordena as linhas conforme a variável renda)
+grafico <- pnad |> arrange(rendaT)  |> mutate(perc_pessoas = cumsum(rep(1/n(), n())),
+                                              perc_renda = cumsum(rendaT)/sum(rendaT) 
+                                              )
+
+ggplot(grafico, aes(x = perc_pessoas, y= perc_renda)) +
+  geom_line(color = "blue") +
+  geom_abline(aes(intercept=0 , slope =1.0), color = "black")+
+  labs(
+    title = "Curva de Lorenz",
+    x = "% da população",
+    y = "% da renda"
+  ) +
+  theme_minimal()
+
+#Não consegui limitar a linha preta entre 0 e 1
+
+```
 

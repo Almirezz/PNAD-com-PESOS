@@ -11,3 +11,4 @@
 # Outros arquivos desnecessários
 **/.DS_Store
 **/Thumbs.db
+.Rproj.user
