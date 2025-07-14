@@ -5,10 +5,10 @@
 **/*.Rproj
 
 # Arquivos de dados temporários
-**/.Rds
-**/.rds
+**/*.Rds
+**/*.rds
 
 # Outros arquivos desnecessários
-**/.DS_Store
+**/*.DS_Store
 **/Thumbs.db
-.Rproj.user
+**/*.Rproj.user
